@@ -1,0 +1,48 @@
+name: CI & E2E Testing
+
+on:
+  pull_request:
+    branches: [ main ]
+  push:
+    branches: [ main ]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    steps:
+      # 1. Checkout the repository code
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      # 2. Set up Node.js environment
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      # 3. Install dependencies across your project
+      - name: Install Dependencies
+        run: |
+          npm ci
+
+      # 4. Start your Docker containers (Database, Backend, Frontend) via Docker Compose
+      - name: Start Services with Docker Compose
+        run: |
+          docker compose up -d --build
+
+      # 5. Wait for services to be ready and run Cypress E2E Tests
+      - name: Run Cypress E2E Tests
+        uses: cypress-io/github-action@v6
+        with:
+          # Adjust if your test command or start URL differs
+          start: npm run start
+          wait-on: 'http://localhost:3000'
+          wait-on-timeout: 120
+
+      # 6. Clean up Docker containers on completion
+      - name: Stop Docker Compose
+        if: always()
+        run: |
+          docker compose down
